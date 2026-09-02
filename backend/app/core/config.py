@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     api_v1_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:5173"
+    database_url: str = "postgresql+asyncpg://devpulse:devpulse@localhost:5433/devpulse"
 
     @property
     def cors_origin_list(self) -> list[str]:
