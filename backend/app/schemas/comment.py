@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CommentRead(BaseModel):
@@ -13,3 +13,6 @@ class CommentRead(BaseModel):
     body: str
     created_at: datetime
     updated_at: datetime
+
+class CommentCreate(BaseModel):
+    body: str = Field(min_length=1)
