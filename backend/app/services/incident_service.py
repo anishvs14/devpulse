@@ -9,6 +9,8 @@ from app.models.incident import Incident
 from app.models.incident_event import IncidentEvent
 from app.models.user import User
 from app.schemas.incident import IncidentCreate, IncidentUpdate
+from app.models.alert import Alert
+from app.models.service import Service
 
 VALID_TRANSITIONS: dict[IncidentStatus, set[IncidentStatus]] = {
     IncidentStatus.OPEN: {IncidentStatus.INVESTIGATING},
@@ -160,3 +162,39 @@ async def get_timeline(db: AsyncSession, incident_id: uuid.UUID) -> list[Inciden
     )
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+async def get_open_incident_for_service(db: AsyncSession, service_id: uuid.UUID) -> Incident | None:
+    stmt = select(Incident).where(
+        Incident.service_id == service_id,
+        Incident.status.notin_([IncidentStatus.RESOLVED, IncidentStatus.CLOSED]),
+    )
+    result = await db.execute(stmt)
+    return result.scalars().first()
+
+
+async def create_incident_from_alert(
+    db: AsyncSession, alert: Alert, service: Service, priority: Priority, system_user: User
+) -> Incident:
+    incident = Incident(
+        title=f"[Auto] {alert.alert_type} on {service.name}",
+        description=f"Automatically opened from a {alert.severity.value} alert: {alert.message}",
+        service_id=service.id,
+        reporter_id=system_user.id,
+        severity=alert.severity,
+        priority=priority,
+    )
+    db.add(incident)
+    await db.flush()
+
+    db.add(
+        IncidentEvent(
+            incident_id=incident.id,
+            actor_id=system_user.id,
+            event_type=IncidentEventType.CREATED,
+            field_name="source",
+            new_value="auto_alert",
+        )
+    )
+    await db.commit()
+    await db.refresh(incident)
+    return incident

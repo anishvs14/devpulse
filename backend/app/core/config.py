@@ -11,9 +11,11 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:5173"
     database_url: str = "postgresql+asyncpg://devpulse:devpulse@localhost:5433/devpulse"
-    secret_key: str ="6d02e15c0be30fe66a692d8201ce43b267a0319bec98146f36ed5413b80bf273"
+    secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    redis_url: str = "redis://localhost:6379/0"
+    alert_ingest_api_key: str  # no default — fails fast, same reasoning as secret_key
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -22,5 +24,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    # cached so Settings() — which reads the .env file — only runs once per process
     return Settings()

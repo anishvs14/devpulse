@@ -1,10 +1,11 @@
 import uuid
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.security import decode_access_token
 from app.db.session import get_db
 from app.models.enums import UserRole
@@ -44,4 +45,12 @@ def require_role(*allowed_roles: UserRole):
                 detail="You do not have permission to perform this action",
             )
         return current_user
+
     return role_checker
+
+
+async def verify_ingest_api_key(x_api_key: str = Header(...)) -> None:
+    """Alerts come from external monitors, not logged-in users — a shared
+    secret header is the standard webhook-auth pattern here, not JWT."""
+    if x_api_key != get_settings().alert_ingest_api_key:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
