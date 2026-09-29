@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from app.core.logging import setup_logging
 from app.core.redis import ALERT_QUEUE_KEY, get_redis, publish_event
 from app.db.session import AsyncSessionLocal
 from app.models.enums import Priority, Severity, ServiceStatus
@@ -8,7 +9,7 @@ from app.models.service import Service
 from app.services import alert_service, incident_service
 from app.services.auth_service import ensure_system_user
 
-logging.basicConfig(level=logging.INFO)
+setup_logging()
 logger = logging.getLogger("devpulse.worker")
 
 # Triage policy — deliberately a plain dict, not a config table. Easy to see,

@@ -16,9 +16,11 @@ from app.schemas.incident import (
 )
 from app.schemas.incident_event import IncidentEventRead
 from app.schemas.pagination import Page
-from app.services import comment_service, incident_service
+from app.services import comment_service, incident_service, postmortem_service
+from app.schemas.postmortem import PostmortemCreate, PostmortemRead, PostmortemUpdate
 
 router = APIRouter()
+_POSTMORTEM_ELIGIBLE = {IncidentStatus.RESOLVED, IncidentStatus.CLOSED}
 
 
 async def _get_incident_or_404(db: AsyncSession, incident_id: uuid.UUID):
@@ -155,3 +157,63 @@ async def delete_comment(
             detail="Only the comment's author or an admin can delete it",
         )
     await comment_service.delete_comment(db, comment)
+
+@router.post(
+    "/{incident_id}/postmortem", response_model=PostmortemRead, status_code=status.HTTP_201_CREATED
+)
+async def create_postmortem(
+    incident_id: uuid.UUID,
+    data: PostmortemCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    incident = await _get_incident_or_404(db, incident_id)
+    if not incident_service.can_modify(incident, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the reporter, assignee, or an admin can write this incident's postmortem",
+        )
+    if incident.status not in _POSTMORTEM_ELIGIBLE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A postmortem can only be written once the incident is RESOLVED or CLOSED",
+        )
+    existing = await postmortem_service.get_postmortem_by_incident(db, incident_id)
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This incident already has a postmortem — use PATCH to edit it",
+        )
+    return await postmortem_service.create_postmortem(db, incident_id, data, current_user.id)
+
+
+@router.get("/{incident_id}/postmortem", response_model=PostmortemRead)
+async def get_postmortem(
+    incident_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    await _get_incident_or_404(db, incident_id)
+    postmortem = await postmortem_service.get_postmortem_by_incident(db, incident_id)
+    if postmortem is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No postmortem for this incident yet")
+    return postmortem
+
+
+@router.patch("/{incident_id}/postmortem", response_model=PostmortemRead)
+async def update_postmortem(
+    incident_id: uuid.UUID,
+    data: PostmortemUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    incident = await _get_incident_or_404(db, incident_id)
+    if not incident_service.can_modify(incident, current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the reporter, assignee, or an admin can edit this incident's postmortem",
+        )
+    postmortem = await postmortem_service.get_postmortem_by_incident(db, incident_id)
+    if postmortem is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No postmortem for this incident yet")
+    return await postmortem_service.update_postmortem(db, postmortem, data)

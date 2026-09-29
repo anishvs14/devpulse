@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PostmortemRead(BaseModel):
@@ -20,3 +20,25 @@ class PostmortemRead(BaseModel):
     lessons_learned: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class PostmortemCreate(BaseModel):
+    summary: str = Field(min_length=1)
+    impact: str = Field(min_length=1)
+    root_cause: str = Field(min_length=1)
+    timeline: str = Field(min_length=1)
+    resolution: str = Field(min_length=1)
+    contributing_factors: str | None = None
+    corrective_actions: str | None = None
+    lessons_learned: str | None = None
+
+
+class PostmortemUpdate(BaseModel):
+    summary: str | None = Field(default=None, min_length=1)
+    impact: str | None = Field(default=None, min_length=1)
+    root_cause: str | None = Field(default=None, min_length=1)
+    timeline: str | None = Field(default=None, min_length=1)
+    resolution: str | None = Field(default=None, min_length=1)
+    contributing_factors: str | None = None
+    corrective_actions: str | None = None
+    lessons_learned: str | None = None
