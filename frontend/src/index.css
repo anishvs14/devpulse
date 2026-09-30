@@ -1,1 +1,47 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ink: #12161c;
+  --color-panel: #1a2029;
+  --color-raised: #222a36;
+  --color-line: #2d3644;
+  --color-fg: #e6e9ee;
+  --color-muted: #8b95a5;
+  --color-pulse: #4cc9c0;
+
+  --color-sev1: #ff6161;
+  --color-sev2: #ff9f43;
+  --color-sev3: #f2d14b;
+  --color-sev4: #6ea8fe;
+  --color-ok: #57d38c;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-pulse);
+  outline-offset: 2px;
+}
+
+/* The one animated element in the app: the live-connection heartbeat. */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.7); opacity: 0.35; }
+}
+.heartbeat { animation: heartbeat 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .heartbeat { animation: none; }
+}
