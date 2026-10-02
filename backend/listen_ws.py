@@ -1,7 +1,9 @@
 # backend/listen_ws.py
 import asyncio
 import sys
+
 import websockets
+
 
 async def listen():
     token = sys.argv[1]
@@ -12,6 +14,7 @@ async def listen():
         while True:
             msg = await ws.recv()
             print(f"[WS EVENT RECEIVED]:\n{msg}\n")
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

@@ -228,6 +228,15 @@ export const alertsApi = {
     request<Page<Alert>>("/alerts/", { params: { ...filters } }),
 };
 
+/**
+ * WebSocket URL for the live-update feed. Resolves against the page origin so it
+ * works both with an absolute VITE_API_URL (local dev: http://localhost:8000/api/v1)
+ * and a relative one (production behind a reverse proxy: /api/v1) — the browser's
+ * WebSocket constructor rejects relative URLs, so we can't just string-replace.
+ */
 export function realtimeUrl(token: string): string {
-  return `${API_BASE_URL.replace(/^http/, "ws")}/ws/updates?token=${encodeURIComponent(token)}`;
+  const url = new URL(API_BASE_URL, window.location.href);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  const base = url.toString().replace(/\/$/, "");
+  return `${base}/ws/updates?token=${encodeURIComponent(token)}`;
 }
