@@ -58,8 +58,8 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://devpulse:devpulse@localhost:5432/devpulse_test
           REDIS_URL: redis://localhost:6379/0
-          SECRET_KEY: testsecretkeyformockingtestssuchaspytestonly12345
-          ALERT_INGEST_API_KEY: testapikeyforalertsworker
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          ALERT_INGEST_API_KEY: ${{ secrets.ALERT_INGEST_API_KEY }}
         run: |
           cd backend
           uv run pytest --cov=app
