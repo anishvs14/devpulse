@@ -4,11 +4,11 @@ import json
 
 from app.core.redis import ALERT_QUEUE_KEY, REALTIME_CHANNEL, get_redis
 from app.workers.alert_worker import process_alert
+from app.core.config import get_settings
 
 from .conftest import API, advance
 
-KEY = {"X-API-Key": "test-ingest-key"}
-
+KEY = {"X-API-Key": get_settings().alert_ingest_api_key}
 
 def alert(service_id: str, severity: str = "SEV1", **over):
     return {
