@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  backend:
+    name: Backend Lint & Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: devpulse
+          POSTGRES_PASSWORD: devpulse
+          POSTGRES_DB: devpulse_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Ruff Lint
+        run: |
+          cd backend
+          uv run ruff check .
+
+      - name: Run Backend Pytest
+        env:
+          DATABASE_URL: postgresql+asyncpg://devpulse:devpulse@localhost:5432/devpulse_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: testsecretkeyformockingtestssuchaspytestonly12345
+          ALERT_INGEST_API_KEY: testapikeyforalertsworker
+        run: |
+          cd backend
+          uv run pytest --cov=app
+
+  frontend:
+    name: Frontend Lint & Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run Tests
+        run: |
+          cd frontend
+          npm test
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm run build
