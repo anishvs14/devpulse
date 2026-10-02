@@ -1,24 +1,24 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.alert import Alert
 from app.models.enums import IncidentEventType, IncidentStatus, Priority, Severity, UserRole
 from app.models.incident import Incident
 from app.models.incident_event import IncidentEvent
+from app.models.service import Service
 from app.models.user import User
 from app.schemas.incident import IncidentCreate, IncidentUpdate
-from app.models.alert import Alert
-from app.models.service import Service
 
 VALID_TRANSITIONS: dict[IncidentStatus, set[IncidentStatus]] = {
     IncidentStatus.OPEN: {IncidentStatus.INVESTIGATING},
     IncidentStatus.INVESTIGATING: {IncidentStatus.IDENTIFIED},
     IncidentStatus.IDENTIFIED: {IncidentStatus.MITIGATING},
     IncidentStatus.MITIGATING: {IncidentStatus.RESOLVED},
-    IncidentStatus.RESOLVED: {IncidentStatus.CLOSED, IncidentStatus.INVESTIGATING},  # reopen if premature
-    IncidentStatus.CLOSED: set(),  # terminal — file a new incident instead
+    IncidentStatus.RESOLVED: {IncidentStatus.CLOSED, IncidentStatus.INVESTIGATING},
+    IncidentStatus.CLOSED: set(),
 }
 
 
@@ -30,8 +30,10 @@ class InvalidTransitionError(Exception):
 
 
 def can_modify(incident: Incident, user: User) -> bool:
-    """Ownership check: reporter, assignee, or admin. Used for general field edits only —
-    status changes and assignment intentionally use role checks instead (see Module notes)."""
+    """Ownership check for general field edits: reporter, assignee, or admin.
+    Status changes and assignment deliberately use role checks instead (any on-call
+    ENGINEER/ADMIN), not this — see Module 4 design notes. Reused as-is for
+    postmortem create/edit — see api/v1/incidents.py, Module 6."""
     return user.role == UserRole.ADMIN or user.id in (incident.reporter_id, incident.assignee_id)
 
 
@@ -133,11 +135,11 @@ async def change_status(
     incident.status = new_status
 
     if old_status == IncidentStatus.OPEN and new_status == IncidentStatus.INVESTIGATING:
-        incident.acknowledged_at = datetime.now(timezone.utc)
+        incident.acknowledged_at = datetime.now(UTC)
     if new_status == IncidentStatus.RESOLVED:
-        incident.resolved_at = datetime.now(timezone.utc)
+        incident.resolved_at = datetime.now(UTC)
     if new_status == IncidentStatus.INVESTIGATING and old_status == IncidentStatus.RESOLVED:
-        incident.resolved_at = None  # reopened — no longer resolved
+        incident.resolved_at = None
 
     db.add(
         IncidentEvent(
@@ -163,7 +165,11 @@ async def get_timeline(db: AsyncSession, incident_id: uuid.UUID) -> list[Inciden
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
+
 async def get_open_incident_for_service(db: AsyncSession, service_id: uuid.UUID) -> Incident | None:
+    """Used by the alert worker to decide whether an incoming severe alert
+    should attach to an already-open incident (alert storm grouping) or
+    start a new one."""
     stmt = select(Incident).where(
         Incident.service_id == service_id,
         Incident.status.notin_([IncidentStatus.RESOLVED, IncidentStatus.CLOSED]),

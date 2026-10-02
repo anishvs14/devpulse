@@ -24,7 +24,9 @@ async def create_postmortem(
     return postmortem
 
 
-async def update_postmortem(db: AsyncSession, postmortem: Postmortem, data: PostmortemUpdate) -> Postmortem:
+async def update_postmortem(
+    db: AsyncSession, postmortem: Postmortem, data: PostmortemUpdate
+) -> Postmortem:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(postmortem, field, value)
     await db.commit()

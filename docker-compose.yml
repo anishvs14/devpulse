@@ -1,6 +1,8 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: devpulse-postgres
+    restart: always
     environment:
       POSTGRES_USER: devpulse
       POSTGRES_PASSWORD: devpulse
@@ -8,14 +10,17 @@ services:
     ports: ["5433:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U devpulse"]
+      test: ["CMD-SHELL", "pg_isready -U devpulse -d devpulse"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
+    container_name: devpulse-redis
+    restart: always
     ports: ["6379:6379"]
+    volumes: ["redis_data:/data"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -24,6 +29,7 @@ services:
 
   backend:
     build: ./backend
+    container_name: devpulse-backend
     ports: ["8000:8000"]
     volumes: ["./backend:/app"]
     env_file: ["./backend/.env"]
@@ -35,6 +41,7 @@ services:
 
   worker:
     build: ./backend
+    container_name: devpulse-worker
     command: ["uv", "run", "python", "-m", "app.workers.alert_worker"]
     volumes: ["./backend:/app"]
     env_file: ["./backend/.env"]
@@ -46,6 +53,7 @@ services:
 
   frontend:
     build: ./frontend
+    container_name: devpulse-frontend
     ports: ["5173:5173"]
     volumes:
       - ./frontend:/app
@@ -54,3 +62,4 @@ services:
 
 volumes:
   pgdata:
+  redis_data:

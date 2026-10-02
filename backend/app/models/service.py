@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPKMixin
 from app.models.enums import ServiceEnvironment, ServiceStatus
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.alert import Alert
     from app.models.incident import Incident
+
 
 class Service(UUIDPKMixin, TimestampMixin, Base):
     __tablename__ = "services"
@@ -25,5 +27,5 @@ class Service(UUIDPKMixin, TimestampMixin, Base):
         Enum(ServiceStatus, name="service_status"), default=ServiceStatus.UNKNOWN, nullable=False
     )
 
-    incidents: Mapped[list["Incident"]] = relationship("Incident", back_populates="service")
-    alerts: Mapped[list["Alert"]] = relationship("Alert", back_populates="service")
+    incidents: Mapped[list[Incident]] = relationship("Incident", back_populates="service")
+    alerts: Mapped[list[Alert]] = relationship("Alert", back_populates="service")

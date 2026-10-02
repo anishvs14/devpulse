@@ -15,7 +15,9 @@ router = APIRouter()
 async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)) -> UserRead:
     existing = await auth_service.get_user_by_email(db, user_in.email)
     if existing is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
+        )
     return await auth_service.create_user(db, user_in)
 
 

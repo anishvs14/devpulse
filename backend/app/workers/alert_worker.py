@@ -4,7 +4,7 @@ import logging
 from app.core.logging import setup_logging
 from app.core.redis import ALERT_QUEUE_KEY, get_redis, publish_event
 from app.db.session import AsyncSessionLocal
-from app.models.enums import Priority, Severity, ServiceStatus
+from app.models.enums import Priority, ServiceStatus, Severity
 from app.models.service import Service
 from app.services import alert_service, incident_service
 from app.services.auth_service import ensure_system_user
@@ -35,7 +35,9 @@ async def process_alert(alert_id: str) -> None:
 
         service = await db.get(Service, alert.service_id)
         if service is None:
-            logger.warning("Service %s not found for alert %s — skipping", alert.service_id, alert_id)
+            logger.warning(
+                "Service %s not found for alert %s — skipping", alert.service_id, alert_id
+            )
             return
 
         new_status = SEVERITY_TO_SERVICE_STATUS.get(alert.severity)
@@ -65,11 +67,14 @@ async def process_alert(alert_id: str) -> None:
                         "title": incident.title,
                     },
                 )
-            # Link this alert to whatever incident is now open for the
+            # Link this alert to whichever incident is now open for the
             # service — whether it's brand new or was already open from an
             # earlier alert. Alert.incident_id is intentionally a plain
             # (non-unique) FK, so many alerts can point at one incident —
-            # this is what makes "alert storm → single incident" grouping work.
+            # this is what makes "alert storm → single incident" grouping
+            # work. (This linking was originally only done in the
+            # newly-created branch — see Section 7d for the bug that caused
+            # and the fix.)
             alert.incident_id = incident.id
             incident_id = incident.id
 

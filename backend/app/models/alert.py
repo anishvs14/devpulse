@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -9,11 +10,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, UUIDPKMixin
 from app.models.enums import Severity
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.incident import Incident
     from app.models.service import Service
+
 
 class Alert(UUIDPKMixin, Base):
     __tablename__ = "alerts"
@@ -37,5 +38,5 @@ class Alert(UUIDPKMixin, Base):
     )
     processed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    service: Mapped["Service"] = relationship("Service", back_populates="alerts")
-    incident: Mapped["Incident | None"] = relationship("Incident", back_populates="alerts")
+    service: Mapped[Service] = relationship("Service", back_populates="alerts")
+    incident: Mapped[Incident | None] = relationship("Incident", back_populates="alerts")

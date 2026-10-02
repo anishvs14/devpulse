@@ -16,10 +16,11 @@ from app.schemas.incident import (
 )
 from app.schemas.incident_event import IncidentEventRead
 from app.schemas.pagination import Page
-from app.services import comment_service, incident_service, postmortem_service
 from app.schemas.postmortem import PostmortemCreate, PostmortemRead, PostmortemUpdate
+from app.services import comment_service, incident_service, postmortem_service
 
 router = APIRouter()
+
 _POSTMORTEM_ELIGIBLE = {IncidentStatus.RESOLVED, IncidentStatus.CLOSED}
 
 
@@ -105,7 +106,7 @@ async def change_incident_status(
     try:
         return await incident_service.change_status(db, incident, data.status, current_user)
     except incident_service.InvalidTransitionError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.get("/{incident_id}/timeline", response_model=list[IncidentEventRead])
@@ -158,6 +159,7 @@ async def delete_comment(
         )
     await comment_service.delete_comment(db, comment)
 
+
 @router.post(
     "/{incident_id}/postmortem", response_model=PostmortemRead, status_code=status.HTTP_201_CREATED
 )
@@ -196,7 +198,9 @@ async def get_postmortem(
     await _get_incident_or_404(db, incident_id)
     postmortem = await postmortem_service.get_postmortem_by_incident(db, incident_id)
     if postmortem is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No postmortem for this incident yet")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No postmortem for this incident yet"
+        )
     return postmortem
 
 
@@ -215,5 +219,7 @@ async def update_postmortem(
         )
     postmortem = await postmortem_service.get_postmortem_by_incident(db, incident_id)
     if postmortem is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No postmortem for this incident yet")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No postmortem for this incident yet"
+        )
     return await postmortem_service.update_postmortem(db, postmortem, data)

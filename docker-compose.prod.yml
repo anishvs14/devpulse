@@ -1,0 +1,104 @@
+# Production-style stack: one command, HTTPS, nothing exposed except ports 80/443.
+#
+#   cp .env.prod.example .env.prod      # then edit every CHANGE_ME
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+#
+# Local dev keeps using docker-compose.yml. This file never mounts source code.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: devpulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: devpulse
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devpulse -d devpulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # no `ports:` on purpose. Only other containers on this network can reach the database.
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]   # queued alerts survive a restart
+    volumes: ["redisdata:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-shot job: applies database migrations, then exits. The API and worker wait for it.
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    env_file: .env.prod
+    environment:
+      DATABASE_URL: postgresql+asyncpg://devpulse:${POSTGRES_PASSWORD}@postgres:5432/devpulse
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      DATABASE_URL: postgresql+asyncpg://devpulse:${POSTGRES_PASSWORD}@postgres:5432/devpulse
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    command: ["python", "-m", "app.workers.alert_worker"]
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      DATABASE_URL: postgresql+asyncpg://devpulse:${POSTGRES_PASSWORD}@postgres:5432/devpulse
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      disable: true   # inherited from the image; the worker serves no HTTP
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: /api/v1
+    restart: unless-stopped
+    depends_on: [backend]
+
+  # TLS terminator. Obtains and renews Let's Encrypt certificates automatically when DOMAIN is a
+  # real domain pointing at this server; with DOMAIN=localhost it uses a local self-signed cert.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [frontend]
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:

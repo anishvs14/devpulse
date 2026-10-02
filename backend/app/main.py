@@ -47,8 +47,14 @@ app = FastAPI(
         {"name": "auth", "description": "Registration and JWT login."},
         {"name": "users", "description": "The authenticated user and (admin-only) the user list."},
         {"name": "services", "description": "Monitored services — health status and metadata."},
-        {"name": "incidents", "description": "Incident lifecycle: CRUD, status workflow, assignment, comments, timeline, postmortems."},
-        {"name": "alerts", "description": "Alert ingestion from external monitors and the resulting alert log."},
+        {
+            "name": "incidents",
+            "description": "Incident lifecycle: CRUD, status workflow, assignment, comments, timeline, postmortems.",
+        },
+        {
+            "name": "alerts",
+            "description": "Alert ingestion from external monitors and the resulting alert log.",
+        },
         {"name": "dashboard", "description": "Aggregate metrics across incidents."},
         {"name": "websocket", "description": "Real-time push of alert/incident/service events."},
     ],
@@ -70,7 +76,9 @@ async def log_requests(request: Request, call_next):
         response = await call_next(request)
     except Exception:
         duration_ms = (time.perf_counter() - start) * 1000
-        logger.info("%s %s -> 500 (%.1fms) [unhandled]", request.method, request.url.path, duration_ms)
+        logger.info(
+            "%s %s -> 500 (%.1fms) [unhandled]", request.method, request.url.path, duration_ms
+        )
         raise  # re-raise so the handler below still produces the response
     duration_ms = (time.perf_counter() - start) * 1000
     logger.info(

@@ -28,8 +28,8 @@ async def get_current_user(
         user_id_str = payload.get("sub")
         if user_id_str is None:
             raise credentials_exception
-    except jwt.PyJWTError:
-        raise credentials_exception
+    except jwt.PyJWTError as exc:
+        raise credentials_exception from exc
 
     user = await db.get(User, uuid.UUID(user_id_str))
     if user is None or not user.is_active:
@@ -38,6 +38,10 @@ async def get_current_user(
 
 
 def require_role(*allowed_roles: UserRole):
+    """Dependency factory — e.g. Depends(require_role(UserRole.ADMIN)).
+    Ownership checks (Module 4: 'is admin OR is the resource's own reporter/assignee')
+    follow this same factory pattern, just with an extra check against the row."""
+
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in allowed_roles:
             raise HTTPException(

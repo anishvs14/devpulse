@@ -3,7 +3,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 from app.models.enums import ServiceEnvironment, ServiceStatus
 
 
@@ -19,6 +18,7 @@ class ServiceRead(BaseModel):
     status: ServiceStatus
     created_at: datetime
     updated_at: datetime
+
 
 class ServiceCreate(BaseModel):
     name: str = Field(min_length=1, max_length=150)

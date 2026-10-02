@@ -29,9 +29,7 @@ async def create_comment(
 
 async def list_comments(db: AsyncSession, incident_id: uuid.UUID) -> list[Comment]:
     stmt = (
-        select(Comment)
-        .where(Comment.incident_id == incident_id)
-        .order_by(Comment.created_at.asc())
+        select(Comment).where(Comment.incident_id == incident_id).order_by(Comment.created_at.asc())
     )
     result = await db.execute(stmt)
     return list(result.scalars().all())

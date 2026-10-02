@@ -72,9 +72,9 @@ async def delete_service(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
     try:
         await service_service.delete_service(db, service)
-    except IntegrityError:
+    except IntegrityError as exc:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cannot delete a service that has incidents on record",
-        )
+        ) from exc

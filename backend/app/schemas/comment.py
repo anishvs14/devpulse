@@ -14,5 +14,6 @@ class CommentRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
 class CommentCreate(BaseModel):
     body: str = Field(min_length=1)

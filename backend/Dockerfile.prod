@@ -1,0 +1,37 @@
+# Production image. The dev Dockerfile (backend/Dockerfile) is left alone for local use.
+# Two stages: build the virtualenv with uv, then copy ONLY the result into a clean image.
+
+FROM python:3.12-slim AS build
+WORKDIR /app
+RUN pip install --no-cache-dir uv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
+
+# Dependencies first, so this layer is cached until pyproject.toml / uv.lock change.
+COPY pyproject.toml uv.lock ./
+RUN uv sync --locked --no-dev --no-install-project
+
+COPY . .
+RUN uv sync --locked --no-dev
+
+
+FROM python:3.12-slim
+WORKDIR /app
+
+# Run as an unprivileged user: a bug in the app must not mean root inside the container.
+RUN useradd --system --create-home --uid 1001 app
+COPY --from=build --chown=app:app /app /app
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+USER app
+EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3).status == 200 else 1)"
+
+# --no-access-log: the WebSocket handshake carries the JWT in the URL (?token=...), and
+# uvicorn's access log would write it to disk. The app's own middleware logs method, path,
+# status and timing WITHOUT the query string.
+# --proxy-headers: trust X-Forwarded-* from the reverse proxy (the API is never published directly).
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log", "--proxy-headers", "--forwarded-allow-ips=*"]
