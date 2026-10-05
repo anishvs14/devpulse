@@ -1,6 +1,7 @@
 import uuid
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password, verify_password
@@ -38,20 +39,28 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
 
 async def ensure_system_user(db: AsyncSession) -> User:
     """Get-or-create the service account used as reporter/actor for anything
-    the alert worker does automatically. Real incident tools (PagerDuty,
-    Opsgenie) use the same 'system actor' pattern rather than making
-    reporter_id nullable — keeps the schema, and every existing IncidentRead
-    consumer, unchanged."""
+    the alert worker does automatically. Uses PostgreSQL ON CONFLICT DO NOTHING
+    to prevent duplicate key race conditions during concurrent test executions.
+    """
     user = await get_user_by_email(db, SYSTEM_USER_EMAIL)
     if user is not None:
         return user
-    user = User(
-        email=SYSTEM_USER_EMAIL,
-        full_name="DevPulse System",
-        hashed_password=hash_password(uuid.uuid4().hex),  # unused — no login path for this account
-        role=UserRole.ADMIN,
+
+    # Atomic insert ignoring collision on ix_users_email
+    stmt = (
+        insert(User)
+        .values(
+            email=SYSTEM_USER_EMAIL,
+            full_name="DevPulse System",
+            hashed_password=hash_password(uuid.uuid4().hex),
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        .on_conflict_do_nothing(index_elements=["email"])
     )
-    db.add(user)
+    await db.execute(stmt)
     await db.commit()
-    await db.refresh(user)
+
+    # Guaranteed to return the existing or just-created user
+    user = await get_user_by_email(db, SYSTEM_USER_EMAIL)
     return user

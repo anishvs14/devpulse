@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 PASSWORD = "demo-password-123"
 USERS = [
-    ("admin@example.com", "Asha Admin", "ADMIN"),
+    ("admin@example.com", "Admin", "ADMIN"),
     ("engineer@example.com", "Rohan Engineer", "ENGINEER"),
     ("oncall@example.com", "Meera On-call", "ENGINEER"),
     ("viewer@example.com", "Vik Viewer", "VIEWER"),

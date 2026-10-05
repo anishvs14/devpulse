@@ -33,6 +33,9 @@ services:
     ports: ["8000:8000"]
     volumes: ["./backend:/app"]
     env_file: ["./backend/.env"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://devpulse:devpulse@postgres:5432/devpulse
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,6 +48,9 @@ services:
     command: ["uv", "run", "python", "-m", "app.workers.alert_worker"]
     volumes: ["./backend:/app"]
     env_file: ["./backend/.env"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://devpulse:devpulse@postgres:5432/devpulse
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       postgres:
         condition: service_healthy
